@@ -51,7 +51,6 @@ tfi
 tft
 tfv
 tfa
-
-exit 
+exit 0 
 
 

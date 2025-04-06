@@ -1,7 +1,6 @@
 #! /bin/bash
 
 cat <<"EOF"
-
     _                     _
    / \   _ __   __ _  ___| |__   ___
   / _ \ | '_ \ / _` |/ __| '_ \ / _ \
@@ -36,3 +35,4 @@ sudo systemctl start httpd
 sudo systemctl enable httpd
 echo "<h1>Deployed via Terraform</h1>" | sudo tee /var/www/html/index.html
 sudo systemctl restart httpd
+

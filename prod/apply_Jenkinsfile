@@ -3,31 +3,58 @@ pipeline {
   environment {
     AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
     AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key-id')
+    AWS_ACCOUNT_ID = "0123456789012"
+    AWS_REGION = 'ap-south-1'
+    IAM_ROLE = 'IacJenkinsServiceRole'
   }
-
   stages {
-    stage("Shell script is going to be invoke to provision infra in AWS"){
-      steps{
-        sh '''
-           echo "Chaging prod directory to execute terraform scripts"
-           cd prod
-           pwd
-           ls -lrth
-           sudo chmod +x tfa.sh
-           ./tfa.sh
-        '''
+    stage("Assume IAM Role and Provision AWS Infra") {
+      steps {
+        script {
+          // Assuming the IAM Role Iac_jenkins_service_role
+          def assumeRoleResponse = sh(script: """
+            aws sts assume-role \
+              --role-arn arn:aws:iam::${AWS_ACCOUNT_ID}:role/${IAM_ROLE} \
+              --role-session-name jenkins-session \
+              --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' \
+              --output text
+          """, returnStdout: true).trim()
+          // Check if assumeRoleResponse is empty or invalid
+          if (!assumeRoleResponse) {
+            error "Failed to assume IAM role"
+          }
+          // Extracting the credentials
+          def credentialsArray = assumeRoleResponse.split("\t")
+          def accessKeyId = credentialsArray[0]
+          def secretAccessKey = credentialsArray[1]
+          def sessionToken = credentialsArray[2]
+          // Setting environment variables for the assumed role
+          withEnv([
+            "AWS_ACCESS_KEY_ID=${accessKeyId}",
+            "AWS_SECRET_ACCESS_KEY=${secretAccessKey}",
+            "AWS_SESSION_TOKEN=${sessionToken}"
+          ]) {
+            // Run Terraform script after assuming the role
+            sh '''
+              echo "Changing prod directory to execute Terraform scripts"
+              cd prod
+              chmod +x tfa.sh
+              ./tfa.sh
+            '''
+          }
+        }
       }
     }
   }
   post {
-    always{
-      echo "####### Sending Slack Notifications on pipeline Job Status ########"
+    always {
+      echo "Sending Slack Notifications on pipeline Job Status"
     }
     failure {
-      slackSend channel: 'demo_jenkins_slack', message: 'Hey DevOps Team  #########  Job Failure. Please check the console output  #########'
+      slackSend channel: 'demo_jenkins_slack', message: 'Hey Job Failure. Please check the console output'
     }
-    success{
-      slackSend channel: 'demo_jenkins_slack', message: 'Hey DevOps Team  #########  Job Success. Please check the console output and AWS UI  #########'
+    success {
+      slackSend channel: 'demo_jenkins_slack', message: 'Hey Job Success. Please check the console output and AWS UI'
     }
   }
 }
