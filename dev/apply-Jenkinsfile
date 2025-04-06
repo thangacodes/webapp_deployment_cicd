@@ -1,112 +1,103 @@
 pipeline {
     agent any
-
     environment {
-        AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
-        AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key-id')
+        AWS_IAM_ROLE = credentials('iam_role_for_jenkins')
+        GIT_REPO = "https://github.com/thangacodes/webapp_deployment_cicd.git"
     }
-
     stages {
         stage('Checkout') {
             steps {
-            git branch: 'main', url: 'https://github.com/send2durai/CICD-Infra-provision.git'
-
-          }
-        }
-	
-	stage ("Changing to the directory, where the config file exist"){
-	    steps {
-	        echo "change directory"
-		sh '''
-		   ls -lrth
-		   cd dev
-		   ls -lrth
-		   pwd
-		 '''
-		}
-	     }
-
-        stage ("terraform init") {
-            steps {
-                echo "Going to initialise the terraform module and download the plugin"
-                sh '''
-		   pwd
-		   cd dev
-		   sleep 3
-		   echo "Going to initialize the terraform init command"
-		   terraform init
-		'''
+                git branch: 'main', url: "${GIT_REPO}"
             }
         }
-		
-		stage ("terraform fmt") {
+        stage('Changing to the directory with config file') {
             steps {
-                echo "It checks and arranging the terraform code proper format"
-                sh '''
-		   pwd
-		   cd dev
-		   sleep 3
-		   echo "Going to format the terraform scripts"
-		   terraform fmt
-		'''
+                echo "Changing to the directory where the config file exists"
+                dir('dev') {
+                    script {
+                        // List files and check current directory
+                        sh 'ls -lrth'
+                        sh 'pwd'
+                    }
+                }
             }
         }
-
-        stage("terraform validate") {
+        stage('terraform init') {
             steps {
-                echo"Going to validate the code written in HCL"
-                sh '''
-		   pwd
-		   cd dev
-		   sleep 3
-		   echo "Going to validate the terraform scripts"
-		   terraform validate
-		'''
+                echo "Initializing Terraform module and downloading the plugins"
+                dir('dev') {
+                    script {
+                        // Initialize terraform module
+                        sh 'terraform init'
+                    }
+                }
             }
         }
-
-        stage("terraform plan") {
+        stage('terraform fmt') {
             steps {
-                echo "Going to show us, what is going to be spin up"
-                sh '''
-		   pwd
-		   cd dev
-		   sleep 3
-		   echo "Going to perform dry-run"
-		   terraform plan
-		'''
+                echo "Formatting Terraform scripts"
+                dir('dev') {
+                    script {
+                        // Format terraform scripts
+                        sh 'terraform fmt'
+                    }
+                }
             }
         }
-	stage("terraform output"){
+        stage('terraform validate') {
             steps {
-                sh '''
-                   cd dev
-                   pwd
-                   ls -lrth
-                   sleep 3
-                   echo "Going to show us the terraform output"
-                   terraform output
-                   sleep 3
-                   terraform output > /tmp/terraform_output.txt
-				   terraform output > /var/lib/jenkins/workspace/Infra_CICD_Terraform/dev
-                '''
+                echo "Validating Terraform configuration"
+                dir('dev') {
+                    script {
+                        // Validate terraform scripts
+                        sh 'terraform validate'
+                    }
+                }
             }
         }
-	stage("Upload file"){
+        stage('terraform plan') {
             steps {
-                slackUploadFile channel: 'demo_jenkins_slack', credentialId: 'b9411ed2-2dae-4273-be8a-b3a0eb76fdab', filePath: '/dev/terraform_output.txt', initialComment: 'Terraform output'
+                echo "Generating Terraform plan (dry-run)"
+                dir('dev') {
+                    script {
+                        // Run terraform plan to show proposed changes
+                        sh 'terraform plan'
+                    }
+                }
+            }
+        }
+        stage('terraform output') {
+            steps {
+                echo "Fetching Terraform output"
+                dir('dev') {
+                    script {
+                        // Fetch and print terraform output to file
+                        sh 'terraform output > /tmp/terraform_output.txt'
+                        sh 'terraform output > terraform_output.txt'
+                    }
+                }
+            }
+        }
+        stage('Upload Output to Slack') {
+            steps {
+                slackUploadFile channel: 'demo_jenkins_slack', 
+                                credentialId: 'b9411ed2-2dae-4273-be8a-b3a0eb76f456', 
+                                filePath: 'dev/terraform_output.txt', 
+                                initialComment: 'Terraform Output'
             }
         }
     }
-    }
-        post {
-            always {
-            echo "********** Sending Slack Notifications on Piepline Job Status"
+    post {
+        always {
+            echo "********** Sending Slack Notifications on Pipeline Job Status"
         }
         failure {
-            slackSend channel: 'demo_jenkins_slack', message: 'Hey DevOps Team  #########  Job Failure. Please check the console output  #########'
+            slackSend channel: 'demo_jenkins_slack', 
+                      message: '🚨 Hey DevOps Team, the job has **failed**. Please check the console output for more details. 🚨'
         }
         success {
-            slackSend channel: 'demo_jenkins_slack', message: 'Hey DevOps Team  #########  Job Succeed. Resoruces have been provisioned  #########'
+            slackSend channel: 'demo_jenkins_slack', 
+                      message: '✅ Hey DevOps Team, the job has **succeeded**. Resources have been successfully provisioned. ✅'
         }
     }
+}
