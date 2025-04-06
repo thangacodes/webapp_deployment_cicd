@@ -1,88 +1,79 @@
 pipeline {
     agent any
-
     environment {
-        AWS_ACCESS_KEY_ID = credentials('jenkins-aws-access-key-id')
-        AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key-id')
+        AWS_IAM_ROLE = credentials('iam_role_for_jenkins')
+        GIT_REPO = "https://github.com/thangacodes/webapp_deployment_cicd.git"
     }
-
     stages {
         stage('Checkout') {
             steps {
-            git branch: 'main', url: 'https://github.com/send2durai/CICD-Infra-provision.git'
-
-          }
+                echo "Checking out repository from ${GIT_REPO}..."
+                git branch: 'main', url: "${GIT_REPO}"
+            }
         }
-	
-	stage ("Changing to the directory, where the config file exist"){
-	    steps {
-	        echo "change directory"
-		sh '''
-		   ls -lrth
-		   cd dev
-		   ls -lrth
-		   pwd
-		 '''
-		}
-	}
-	stage ("terraform fmt") {
-      steps {
-      echo "It checks and arranging the terraform code proper format"
-      sh '''
-		   pwd
-		   cd dev
-		   sleep 3
-		   echo "Going to format the terraform scripts"
-		   terraform fmt
-		'''
-      }
-    }
-    stage("terraform validate") {
-        steps {
-        echo"Going to validate the code written in HCL"
-        sh '''
-		       pwd
-		       cd dev
-		       sleep 3
-		       echo "Going to validate the terraform scripts"
-		       terraform validate
-		    '''
-      }
-    }
-    stage("terraform plan") {
-        steps {
-        echo "Going to show us, what is going to be spin up"
-        sh '''
-		       pwd
-		       cd dev
-		       sleep 3
-		       echo "Going to perform dry-run"
-		       terraform plan
-		    '''
+        stage('Changing to the directory with config file') {
+            steps {
+                echo "Changing to the directory where the config file exists..."
+                dir('dev') {
+                    // Listing files and checking current directory
+                    sh '''
+                    pwd
+                    '''
+                }
+            }
         }
-      }
-      stage ("terraform Destroy") {
-          steps {
-          echo "This where the Jenkins admins need to select, whether he/she wants to deploy resources in AWS"
-          sh '''
-		         pwd
-		         cd dev
-		         ls -lrth
-		         echo "Going to execute the terraform apply command"
-            terraform destroy --auto-approve
-		      '''
-           }
+        stage('terraform fmt') {
+            steps {
+                echo "Formatting Terraform configuration files..."
+                dir('dev') {
+                    // Running terraform fmt to format the code
+                    sh 'terraform fmt'
+                }
+            }
+        }
+        stage('terraform plan') {
+            steps {
+                echo "Generating Terraform plan (dry-run)..."
+                dir('dev') {
+                    // Running terraform plan to show proposed changes
+                    sh 'terraform plan'
+                }
+            }
+        }
+        stage('terraform Destroy') {
+            steps {
+                script {
+                    echo "This is where Jenkins admins need to decide if they want to destroy resources in AWS."
+                    // Add a prompt for confirmation (this is just a simple prompt, more complex logic can be added)
+                    def destroyConfirm = input(
+                        message: 'Are you sure you want to destroy the resources?',
+                        parameters: [
+                            choice(name: 'Proceed with destroy?', choices: ['Yes', 'No'], description: 'Choose whether to destroy the resources.')
+                        ]
+                    )
+                    if (destroyConfirm == 'Yes') {
+                        echo "Proceeding with terraform destroy..."
+                        dir('dev') {
+                            // Running terraform destroy with auto-approval
+                            sh 'terraform destroy --auto-approve'
+                        }
+                    } 
+                    else {
+                        echo "Skipping terraform destroy operation."
+                    }
+                }
+            }
         }
     }
-        post {
-            always {
-            echo "********** Sending Slack Notifications on Piepline Job Status"
+    post {
+        always {
+            echo "********** Sending Slack Notifications on Pipeline Job Status **********"
         }
         failure {
-            slackSend channel: 'demo_jenkins_slack', message: 'Hey DevOps Team  #########  Jenkins Pipeline Job is Failure  #########'
+            slackSend channel: 'demo_jenkins_slack', message: '🚨 Hey DevOps Team, the Jenkins pipeline job **failed**. Please check the console output for more details. 🚨'
         }
         success {
-            slackSend channel: 'demo_jenkins_slack', message: 'Hey DevOps Team  #########  Jenkins Pipeline Job is Succeed  #########'
+            slackSend channel: 'demo_jenkins_slack', message: '✅ Hey DevOps Team, the Jenkins pipeline job **succeeded**. Resources have been successfully managed. ✅'
         }
     }
 }
