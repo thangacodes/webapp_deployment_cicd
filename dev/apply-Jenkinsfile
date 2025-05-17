@@ -93,11 +93,11 @@ pipeline {
         }
         failure {
             slackSend channel: 'demo_jenkins_slack', 
-                      message: '🚨 Hey DevOps Team, the job has **failed**. Please check the console output for more details. 🚨'
+                      message: 'Hey DevOps Team, the job has **failed**. Please check the console output for more details.'
         }
         success {
             slackSend channel: 'demo_jenkins_slack', 
-                      message: '✅ Hey DevOps Team, the job has **succeeded**. Resources have been successfully provisioned. ✅'
+                      message: 'Hey DevOps Team, the job has **succeeded**. Resources have been successfully provisioned.'
         }
     }
 }
