@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Exit immediately on error, treat unset variables as errors, and ensure pipelines fail on any command failure
-set -euxo pipefail
+set -eux pipefail
 
 # Variables
 FUNCTIONAL_USER="jvapp"
