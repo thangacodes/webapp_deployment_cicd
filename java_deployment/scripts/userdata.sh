@@ -9,7 +9,16 @@
   sudo apt install python3.12-venv
   sudo apt install -y openjdk-17-jdk
   sudo apt-get install terraform -y
-  echo "tomcat download"
+  echo "download tomcat tar file"
   cd /tmp/
-  wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.106/bin/apache-tomcat-9.0.106.tar.gz 
+  wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.106/bin/apache-tomcat-9.0.106.tar.gz
+  echo "untar the file"
+  tar -xvf apache-tomcat-9.0.106.tar.gz
+  echo "rename the folder"
+  mv apache-tomcat-9.0.106 app
+  echo "start the service.."
+  sh app/bin/startup.sh
+  echo "checking tomcat log file"
+  grep -i severe app/logs/catalina.out
+  grep -i starting app/logs/catalina.out
 } >> /tmp/user-data.log 2>&1
