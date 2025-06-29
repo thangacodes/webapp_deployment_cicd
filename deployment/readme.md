@@ -24,4 +24,4 @@ The deployment workflow orchestrates infrastructure setup, configuration, and ap
 
 Click below to view the full architecture diagram:
 
-[architect](https://github.com/thangacodes/webapp_deployment_cicd/blob/main/java_deployment/end-to-end-architecutre.png)
+[architect design](https://github.com/thangacodes/webapp_deployment_cicd/blob/main/deployment/end-to-end-architecutre.png)
