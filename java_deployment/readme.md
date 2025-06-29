@@ -1,4 +1,4 @@
-# Web App Deployment with CI/CD:
+# WebApp Deployment with CI/CD:
 
 This project automates the end-to-end deployment of a Java-based web application using a modern DevOps toolchain.
 
