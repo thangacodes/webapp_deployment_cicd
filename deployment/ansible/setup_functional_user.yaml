@@ -1,5 +1,5 @@
 ---
-- name: Ensure appadmin user, sudoers config, and app directory
+- name: Ensure appadmin user, sudoers config, and app directory, then start the app
   hosts: localhost
   become: yes
   vars:
@@ -7,27 +7,47 @@
     app_dir: /opt/app
     sudoers_file: "/etc/sudoers.d/{{ functional_user }}"
     sudo_rule: "{{ ansible_user_id }} ALL=(ALL) NOPASSWD: /bin/su - {{ functional_user }}"
+
   tasks:
     - name: Ensure the functional user exists
-      ansible.builtin.user:
+      user:
         name: "{{ functional_user }}"
         shell: /bin/bash
         create_home: yes
-        groups: "{{ 'sudo' if 'debian' in ansible_os_family | lower else 'wheel' }}"
+        groups: "{{ 'sudo' if ansible_os_family == 'Debian' else 'wheel' }}"
         append: yes
         password_lock: true
+
     - name: Add sudoers rule for current user
-      ansible.builtin.copy:
+      copy:
         content: "{{ sudo_rule }}"
         dest: "{{ sudoers_file }}"
         owner: root
         group: root
         mode: '0440'
         validate: 'visudo -cf %s'
+
     - name: Ensure app directory exists
-      ansible.builtin.file:
+      file:
         path: "{{ app_dir }}"
         state: directory
         owner: "{{ functional_user }}"
         group: "{{ functional_user }}"
         mode: '0755'
+
+    - name: Start the application service as functional user
+      command: sh /opt/app/bin/startup.sh
+      become: yes
+      become_user: "{{ functional_user }}"
+    
+    - name: grep the log file
+      command: grep -i 'starting' {{ app_dir }}/logs/catalina_out
+      register: starting_out
+      ignore_errors: yes  
+    - name: Sleep for 10 seconds to allow the service to start
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Show grep output
+      debug:
+        var: starting_out.stdout_lines
