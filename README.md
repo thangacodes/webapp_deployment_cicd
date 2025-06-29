@@ -1,14 +1,13 @@
-# CICD-Infra-provision
+# Deployment
 
-```bash
-* Setting up infrastructure provisioning in AWS using the Jenkins CI/CD tool
+This repository contains all apps deployments carried out using modern tools, including:
 
-* Infrastructure as Code (IaC) tool: Terraform
+Terraform
 
-* IDE: VSCode
+Ansible
 
-* Source Code Management: GitHub.
+Custom Scripts
 
-* Notifications: Slack messages on job failure and success.
+# WebApp deployment
 
-* Primarily used Terraform scripts and small bash scripts to invoke operations.
+[deployment](https://github.com/thangacodes/webapp_deployment_cicd/tree/main/deployment)
